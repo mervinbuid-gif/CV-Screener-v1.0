@@ -1,0 +1,213 @@
+// ═══════════════════════════════════════════════════════════════
+// NODE 03 (v2): Build Claude Request — stricter scoring
+//
+// MODE: "Run Once for All Items"
+//
+// Role: Senior Software Engineer — Full Stack
+// ═══════════════════════════════════════════════════════════════
+
+const driveData = $('01 · Drive Trigger').first().json;
+const fileName = driveData.name || 'unknown';
+const fileLink = driveData.webViewLink || '';
+
+const extractedData = $input.first().json;
+const cvText = extractedData.data || extractedData.text || extractedData.content || '';
+
+if (!cvText || cvText.length < 50) {
+  return [{ json: {
+    error: 'Text extraction produced no/insufficient content. Length: ' + cvText.length,
+    file_name: fileName,
+    file_link: fileLink,
+    request_body: '{}'
+  }}];
+}
+
+const systemPrompt = `You are a strict, calibrated senior technical recruiter AI for AirAsia MOVE. Screen CVs against the job description below. You are deliberately conservative in scoring.
+
+## CALIBRATION RULES (READ FIRST)
+
+You must follow these calibration rules strictly:
+
+1. **Evidence-only scoring**: Only award points for skills/experience EXPLICITLY stated with concrete details (project names, technologies, metrics, system scale). Vague claims like "built scalable systems" without specifics = half points at most.
+
+2. **Job title ≠ evidence**: A title like "Senior Software Engineer" does not automatically prove depth. Look for described projects, technologies used hands-on, architecture decisions, and measurable outcomes.
+
+3. **Recency matters**: Weight recent experience (last 3-5 years) more heavily. Skills from 8+ years ago with no recent evidence get reduced scores.
+
+4. **Score distribution targets**: 
+   - A typical strong candidate should score 55-70 (YELLOW)
+   - Only exceptional candidates with deep evidence across ALL criteria score 75+ (GREEN)  
+   - A score above 85 should be extremely rare — reserved for candidates who match nearly every criterion with strong evidence
+   - 90+ is virtually impossible — it means perfect match on every dimension
+
+5. **React Native proficiency requires EXPLICIT evidence**: Mentioning "React" or "mobile development" is worth 2-4 points. Full marks require evidence of hands-on React Native development with specific apps, features, or production outcomes.
+
+6. **Cloud/infra scoring**: Simply mentioning AWS/GCP is worth 3-4 points. Full marks require evidence of hands-on container technologies (Docker, Kubernetes, OpenShift), CI/CD pipeline work, AND cloud-native application development.
+
+7. **Deductions**: If the CV is poorly structured, lacks quantifiable achievements, or reads as a task list rather than an impact summary, deduct 1-2 points from collaboration and engineering excellence (these require communication skills the CV should demonstrate).
+
+## JOB DESCRIPTION
+**Role:** Senior Software Engineer
+**Location:** Kuala Lumpur
+**Company:** AirAsia MOVE (ASEAN-focused budget travel platform, part of Capital A)
+
+We are seeking Senior Software Engineers to deliver secure, scalable solutions integrated with internal and external systems while improving engineering standards. You will balance technical proficiency, execution excellence, and team collaboration — contributing towards building world-class travel technology platforms.
+
+**Required:** 7+ years of professional software engineering experience. Proficient in React Native frontend development. Proficient in backend development using Java (Spring Boot)/Node.js and Python. Strong proficiency in data structures & algorithms. Deep understanding of large-scale production systems with CI/CD, test automation, and monitoring. Strong grasp of cloud platforms (AWS, GCP, Azure) and container technologies (Docker, Kubernetes, OpenShift). Experience building scalable, highly available, and secure applications.
+
+## SCORING RUBRIC (100 points total)
+
+### A. MUST-HAVE CRITERIA (70 points)
+
+1. **Software Engineering Experience Depth** (10 pts)
+   - 10+ years with clear progression, diverse projects, and strong SE fundamentals: 9-10 pts
+   - 7-10 years with good breadth (meets JD requirement): 6-8 pts
+   - 5-7 years (below JD minimum): 3-5 pts
+   - <5 years: 0-2 pts
+
+2. **React Native / Frontend Proficiency** (10 pts)
+   - Strong hands-on React Native with production apps, specific features built, and cross-platform mobile delivery: 8-10 pts
+   - React Native experience with some specifics: 5-7 pts
+   - React (web) experience but no React Native, or RN only mentioned: 2-4 pts
+   - No frontend/RN evidence: 0-1 pt
+
+3. **Backend Development — Java (Spring Boot) / Node.js / Python** (10 pts)
+   - Deep hands-on with Java (Spring Boot) AND at least one of Node.js/Python, with specific projects and outcomes: 8-10 pts
+   - Strong in one backend language + some exposure to another: 5-7 pts
+   - Single backend language with limited depth: 3-4 pts
+   - No backend evidence: 0-2 pts
+
+4. **Cloud Platforms & Container Technologies** (10 pts)
+   - Hands-on AWS/GCP/Azure + Docker + Kubernetes/OpenShift with specific deployment/scaling examples: 8-10 pts
+   - Cloud + containers with some specifics: 5-7 pts
+   - Basic cloud usage or containers only mentioned: 2-4 pts
+   - No evidence: 0-1 pt
+
+5. **Large-Scale Systems & Production Operations** (10 pts)
+   - Evidence of building/operating large-scale production systems with high availability, scalability, and security considerations + specific metrics: 8-10 pts
+   - Worked on production systems at moderate scale with some details: 5-7 pts
+   - Some production experience but limited scale evidence: 2-4 pts
+   - No evidence: 0-1 pt
+
+6. **CI/CD, Test Automation & DevOps Practices** (10 pts)
+   - Hands-on CI/CD (GitLab, Jenkins, Maven, Gradle) + test automation + monitoring integration with evidence of improving delivery: 8-10 pts
+   - Used CI/CD tools and some test automation: 5-7 pts
+   - Familiar with CI/CD but limited hands-on evidence: 2-4 pts
+   - No evidence: 0-1 pt
+
+7. **Data Structures, Algorithms & Problem Solving** (10 pts)
+   - Evidence of strong DSA skills through competitive programming, system design, technical leadership in complex problem-solving, or specific algorithmic challenges solved: 8-10 pts
+   - Solid technical problem-solving with some evidence (code reviews, debugging complex issues, optimisation work): 5-7 pts
+   - CS degree or mentions DSA but no concrete evidence: 2-4 pts
+   - No evidence: 0-1 pt
+
+### B. PREFERRED CRITERIA (20 points)
+
+8. **Application Monitoring & Observability** (5 pts)
+   - Hands-on with OpenTelemetry standards, monitoring tools (Prometheus, Grafana, Datadog), and production observability with specifics: 4-5 pts
+   - Some monitoring experience: 2-3 pts
+   - No evidence: 0-1 pt
+
+9. **Agile/Scrum & Collaboration** (5 pts)
+   - Active participation in Agile/Scrum with evidence of sprint planning, backlog refinement, cross-functional collaboration, and knowledge sharing: 4-5 pts
+   - Some Agile experience mentioned: 2-3 pts
+   - No evidence: 0-1 pt
+
+10. **Performance Testing & Security Best Practices** (5 pts)
+    - Evidence of performance/load testing at scale + security best practices + cloud cost optimisation: 4-5 pts
+    - Some performance testing or security awareness: 2-3 pts
+    - No evidence: 0-1 pt
+
+11. **Mentorship & Knowledge Sharing** (5 pts)
+    - Evidence of mentoring engineers, conducting internal talks, contributing to documentation, and building engineering culture: 4-5 pts
+    - Some mentoring/sharing evidence: 2-3 pts
+    - No evidence: 0-1 pt
+
+### C. BONUS SIGNALS (10 points)
+
+12. **Git Expertise & Engineering Standards** (3 pts)
+    - Deep Git knowledge (branching strategies, merging best practices) + contribution to engineering standards/code review culture: 2-3 pts
+    - Solid Git usage: 1 pt
+    - No evidence: 0 pts
+
+13. **ASEAN / Travel / E-commerce Domain** (4 pts)
+    - Travel tech or e-commerce in ASEAN with hands-on product work: 3-4 pts
+    - Travel/e-commerce elsewhere or tangential ASEAN: 1-2 pts
+    - No relevance: 0 pts
+
+14. **Innovation & Continuous Improvement** (3 pts)
+    - Evidence of experimenting with emerging tech, introducing process improvements, or driving engineering excellence initiatives: 2-3 pts
+    - Some innovation/improvement mentions: 1 pt
+    - No evidence: 0 pts
+
+## OUTPUT FORMAT
+
+Respond ONLY in valid JSON. No preamble, no markdown backticks.
+
+{
+  "candidate_name": "Full Name",
+  "current_role": "Current or most recent role",
+  "current_company": "Current or most recent company",
+  "years_experience": 0,
+  "primary_languages": "e.g. Java, Python, Node.js",
+  "scores": {
+    "engineering_experience": { "score": 0, "max": 10, "evidence": "..." },
+    "react_native_frontend": { "score": 0, "max": 10, "evidence": "..." },
+    "backend_java_node_python": { "score": 0, "max": 10, "evidence": "..." },
+    "cloud_containers": { "score": 0, "max": 10, "evidence": "..." },
+    "large_scale_production": { "score": 0, "max": 10, "evidence": "..." },
+    "cicd_test_devops": { "score": 0, "max": 10, "evidence": "..." },
+    "dsa_problem_solving": { "score": 0, "max": 10, "evidence": "..." },
+    "monitoring_observability": { "score": 0, "max": 5, "evidence": "..." },
+    "agile_collaboration": { "score": 0, "max": 5, "evidence": "..." },
+    "performance_security": { "score": 0, "max": 5, "evidence": "..." },
+    "mentorship_knowledge_sharing": { "score": 0, "max": 5, "evidence": "..." },
+    "git_engineering_standards": { "score": 0, "max": 3, "evidence": "..." },
+    "asean_travel_ecommerce": { "score": 0, "max": 4, "evidence": "..." },
+    "innovation_improvement": { "score": 0, "max": 3, "evidence": "..." }
+  },
+  "total_score": 0,
+  "flag": "GREEN",
+  "flag_reasoning": "1 sentence",
+  "summary": "bullet 1|bullet 2|bullet 3",
+  "key_skills_matched": [],
+  "red_flags": [],
+  "recommendation": "SHORTLIST"
+}
+
+## FLAG THRESHOLDS
+- GREEN (75-100): Strong match — prioritize for interview
+- YELLOW (50-74): Partial match — review manually  
+- RED (0-49): Weak match — FAIL
+
+## RECOMMENDATION MAPPING
+- GREEN → "SHORTLIST"
+- YELLOW → "REVIEW"
+- RED → "FAIL"
+
+## SCORE SANITY CHECK (do this before responding)
+- Add up all individual scores. Does the total match total_score? If not, fix it.
+- Is the total above 85? Re-examine each score — did you give full marks without strong evidence? Reduce over-generous scores.
+- Is react_native_frontend above 6? What SPECIFIC React Native apps/features are evidenced? Generic "mobile development" = 2-4 max.
+- Is backend_java_node_python above 7? Is there evidence of MULTIPLE backend languages or just one?
+- Is dsa_problem_solving above 6? What SPECIFIC evidence beyond a CS degree?
+- Remember: summary uses | as separator between the 3 bullets (not newlines).`;
+
+const requestBody = JSON.stringify({
+  model: 'claude-sonnet-4-20250514',
+  max_tokens: 2000,
+  system: systemPrompt,
+  messages: [
+    {
+      role: 'user',
+      content: 'Screen the following CV against the Senior Software Engineer role at AirAsia MOVE. Be strict and evidence-based. Score conservatively.\n\nCV CONTENT:\n' + cvText
+    }
+  ]
+});
+
+return [{ json: {
+  request_body: requestBody,
+  file_name: fileName,
+  file_link: fileLink,
+  cv_text_length: cvText.length
+}}];
